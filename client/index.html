@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Mode with Cookies</title>
+    <style>
+        body.dark { background-color: black; color: white; }
+        body.light { background-color: white; color: black; }
+    </style>
+</head>
+<body>
+    <button id="toggleTheme">Toggle Theme</button>
+    <script>
+        // Utility functions for cookies
+        function setCookie(name, value, days) {
+            const date = new Date();
+            date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
+            document.cookie = `${name}=${value}; expires=${date.toUTCString()}; path=/`;
+        }
+        function getCookie(name) {
+            return document.cookie.split('; ').reduce((acc, cookie) => {
+                const [key, value] = cookie.split('=');
+                return key === name ? value : acc;
+            }, null);
+        }
+
+        // Set initial theme
+        const currentTheme = getCookie('theme') || 'light';
+        document.body.className = currentTheme;
+
+        // Toggle theme and update cookie
+        document.getElementById('toggleTheme').addEventListener('click', () => {
+            const newTheme = document.body.className === 'light' ? 'dark' : 'light';
+            document.body.className = newTheme;
+            setCookie('theme', newTheme, 7);
+        });
+    </script>
+</body>
+</html>
