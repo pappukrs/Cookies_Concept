@@ -1,21 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cookies</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Playground</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1> Browser Cookies</h1>
+<main>
+  <nav class="top"><a href="index.html">← Lab home</a><a href="visual.html">Visual</a><a href="auth.html">Auth demo</a></nav>
+  <h1>Cookie playground</h1>
+  <p class="lead">Set cookies two ways: from <strong>JavaScript</strong> (<code>document.cookie</code>) and from the
+    <strong>server</strong> (<code>Set-Cookie</code> header). Then compare what each side can see.</p>
 
+  <div class="card">
+    <h2>Make a cookie</h2>
+    <div class="grid">
+      <label>Name <input id="name" value="username"></label>
+      <label>Value <input id="value" value="Pappu"></label>
+      <label>Max-Age in seconds (empty = session cookie)
+        <input id="maxAge" type="number" value="3600"></label>
+      <label>Path <input id="path" value="/"></label>
+      <label>SameSite
+        <select id="sameSite">
+          <option value="">(not set → browser uses Lax)</option>
+          <option>Lax</option><option>Strict</option><option>None</option>
+        </select>
+      </label>
+      <div>
+        <label class="check"><input type="checkbox" id="secure"> Secure (HTTPS only; localhost counts)</label>
+        <label class="check"><input type="checkbox" id="httpOnly"> HttpOnly (server only)</label>
+      </div>
+    </div>
+    <div class="row">
+      <button id="setJs">Set from JavaScript</button>
+      <button id="setServer">Set from server</button>
+    </div>
+    <p class="muted" id="httpOnlyNote" hidden>JavaScript can't create an HttpOnly cookie.
+      "Set from JavaScript" will ignore that box. Use "Set from server".</p>
+    <pre id="lastAction">Nothing yet.</pre>
+  </div>
 
+  <div class="grid">
+    <div class="card">
+      <h2>What JavaScript sees</h2>
+      <p class="muted">Read from <code>document.cookie</code>. No attributes, no HttpOnly cookies.</p>
+      <pre id="rawJs"></pre>
+      <table><thead><tr><th>Name</th><th>Value</th><th></th></tr></thead><tbody id="jsTable"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>What the server sees</h2>
+      <p class="muted">The <code>Cookie</code> header that came with a request. HttpOnly cookies show up here.</p>
+      <div class="row"><button class="ghost" id="askServer">Ask the server</button></div>
+      <pre id="serverView">Click "Ask the server".</pre>
+    </div>
+  </div>
 
-    
-    <script>
-        document.cookie="username=Alka;expires=23 Nov 2024 ";
-        document.cookie="userEmail=pappu@gmail.com"
-        
-    </script>
+  <div class="card">
+    <h2>Try these experiments</h2>
+    <ol>
+      <li><strong>HttpOnly:</strong> tick HttpOnly, click "Set from server". The cookie appears on the right but
+        <em>not</em> on the left. That's why session ids should be HttpOnly: an XSS script can't steal them.</li>
+      <li><strong>Session vs persistent:</strong> clear Max-Age and set a cookie. Close the whole browser and come back:
+        it's gone. (Some browsers keep session cookies if "continue where you left off" is on.)</li>
+      <li><strong>Expiry:</strong> set Max-Age to <code>5</code>, wait 5 seconds, click Refresh. It disappears by itself.</li>
+      <li><strong>Path:</strong> set a cookie with Path <code>/admin</code>. It won't show on this page (<code>/cookies.html</code>),
+        because the path doesn't match.</li>
+      <li><strong>SameSite=None without Secure:</strong> the browser rejects it silently. Look in DevTools → Application → Cookies
+        or the Console for a warning.</li>
+      <li><strong>Same name, different path</strong> = two different cookies. Deleting needs the same name <em>and</em> path.</li>
+      <li><strong>Signed cookie:</strong> hit <button class="ghost" id="visits">/api/visits</button> a few times, then edit the
+        <code>visits</code> cookie in DevTools (change the number) and hit it again. The server notices.</li>
+    </ol>
+    <pre id="visitsOut"></pre>
+  </div>
+</main>
+<script type="module">
+  import { getAllCookies, setCookie, deleteCookie } from './cookie-helpers.js';
+
+  const $ = (id) => document.getElementById(id);
+
+  function readForm() {
+    return {
+      name: $('name').value.trim(),
+      value: $('value').value,
+      maxAge: $('maxAge').value,
+      path: $('path').value.trim() || '/',
+      sameSite: $('sameSite').value,
+      secure: $('secure').checked,
+      httpOnly: $('httpOnly').checked,
+    };
+  }
+
+  function renderJsView() {
+    $('rawJs').textContent = `document.cookie = "${document.cookie}"`;
+    const rows = Object.entries(getAllCookies()).map(([name, value]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td></td><td></td><td></td>';
+      tr.children[0].textContent = name;
+      tr.children[1].textContent = value;
+      const btn = document.createElement('button');
+      btn.className = 'ghost';
+      btn.textContent = 'Delete';
+      btn.onclick = () => {
+        deleteCookie(name, '/');
+        renderJsView();
+      };
+      tr.children[2].append(btn);
+      return tr;
+    });
+    $('jsTable').replaceChildren(...rows);
+    if (!rows.length) $('jsTable').innerHTML = '<tr><td colspan="3" class="muted">No cookies visible to JS.</td></tr>';
+  }
+
+  async function askServer() {
+    const res = await fetch('/api/echo');
+    $('serverView').textContent = JSON.stringify(await res.json(), null, 2);
+  }
+
+  $('httpOnly').addEventListener('change', () => { $('httpOnlyNote').hidden = !$('httpOnly').checked; });
+
+  $('setJs').addEventListener('click', () => {
+    const f = readForm();
+    const str = setCookie(f.name, f.value, {
+      maxAge: f.maxAge === '' ? undefined : Number(f.maxAge),
+      path: f.path,
+      sameSite: f.sameSite || undefined,
+      secure: f.secure,
+    });
+    $('lastAction').textContent = `document.cookie = "${str}"`;
+    renderJsView();
+    askServer();
+  });
+
+  $('setServer').addEventListener('click', async () => {
+    const res = await fetch('/api/set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(readForm()),
+    });
+    const data = await res.json();
+    $('lastAction').textContent = data.sentHeader || data.error;
+    renderJsView();
+    askServer();
+  });
+
+  $('askServer').addEventListener('click', askServer);
+
+  $('visits').addEventListener('click', async () => {
+    const res = await fetch('/api/visits');
+    $('visitsOut').textContent = JSON.stringify(await res.json(), null, 2);
+    renderJsView();
+  });
+
+  renderJsView();
+  setInterval(renderJsView, 1000); // so you can watch Max-Age cookies expire
+  if (location.protocol === 'file:') {
+    $('lastAction').textContent = 'Cookies do not work on file:// pages. Run "npm start" and open http://localhost:3000/cookies.html';
+  } else {
+    askServer();
+  }
+</script>
 </body>
-
 </html>

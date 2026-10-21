@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Bank Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <nav class="top"><a href="index.html">← Lab home</a><a href="cookies.html">Playground</a><a href="visual.html">Visual</a></nav>
+  <h1>Cookie Bank: sessions + CSRF</h1>
+  <p class="lead">A tiny "bank" on <code>localhost:3000</code>. Log in, then visit the attacker site on
+    <code>127.0.0.1:3001</code> and see whether it can move your money.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1. Log in</h2>
+      <label>Username <input id="username" value="pappu"></label>
+      <label>SameSite for the session cookie
+        <select id="sameSite">
+          <option value="Lax">Lax (safe default)</option>
+          <option value="Strict">Strict (safest, but breaks links from other sites)</option>
+          <option value="None">None (sent cross-site → CSRF possible)</option>
+        </select>
+      </label>
+      <div class="row">
+        <button id="login">Log in</button>
+        <button class="ghost" id="logout">Log out</button>
+      </div>
+      <pre id="loginOut">Not logged in.</pre>
+    </div>
+
+    <div class="card">
+      <h2>2. Who am I?</h2>
+      <p class="muted"><code>GET /api/me</code> — the browser attaches the <code>sid</code> cookie by itself.</p>
+      <div class="row"><button class="ghost" id="me">Refresh</button></div>
+      <pre id="meOut"></pre>
+      <p class="muted">JS view of cookies: <code id="jsCookies"></code><br>
+        The <code>sid</code> cookie is HttpOnly, so it is <strong>not</strong> in this list.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. Send money from our own page</h2>
+    <div class="row">
+      <button id="safe">Send ₹100 (safe endpoint, with CSRF token)</button>
+      <button class="ghost" id="unsafe">Send ₹100 (unsafe endpoint)</button>
+    </div>
+    <pre id="sendOut"></pre>
+  </div>
+
+  <div class="card">
+    <h2>4. Now be the victim</h2>
+    <ol>
+      <li>Log in above with <strong>SameSite=None</strong>.</li>
+      <li>Open the <a href="http://127.0.0.1:3001/" target="_blank" rel="noopener">attacker site</a> and click both buttons.</li>
+      <li>Attack 1 (unsafe) moves your money. Attack 2 (safe) is blocked by the CSRF token.</li>
+      <li>Log in again with <strong>Lax</strong> and repeat. Now both fail, because the browser
+        doesn't send the cookie on a cross-site POST.</li>
+    </ol>
+    <p class="muted">Lesson: use <strong>both</strong> layers. SameSite=Lax is the first wall; a CSRF token
+      (or checking the <code>Origin</code> header) is the second.</p>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let csrfToken = null;
+
+  async function call(method, url, body, headers = {}) {
+    const res = await fetch(url, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json', ...headers } : headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return { status: res.status, data: await res.json() };
+  }
+
+  async function refreshMe() {
+    const { status, data } = await call('GET', '/api/me');
+    csrfToken = data.csrfToken || null;
+    $('meOut').textContent = `HTTP ${status}\n` + JSON.stringify(data, null, 2);
+    $('jsCookies').textContent = document.cookie || '(empty)';
+  }
+
+  $('login').onclick = async () => {
+    const { data } = await call('POST', '/api/login', { username: $('username').value, sameSite: $('sameSite').value });
+    $('loginOut').textContent = data.sentHeader || data.error;
+    refreshMe();
+  };
+  $('logout').onclick = async () => {
+    const { data } = await call('POST', '/api/logout');
+    $('loginOut').textContent = data.sentHeader;
+    refreshMe();
+  };
+  $('me').onclick = refreshMe;
+  $('safe').onclick = async () => {
+    const { status, data } = await call('POST', '/api/transfer-safe', { to: 'friend', amount: 100 },
+      csrfToken ? { 'X-CSRF-Token': csrfToken } : {});
+    $('sendOut').textContent = `HTTP ${status}\n` + (data.message || data.error);
+    refreshMe();
+  };
+  $('unsafe').onclick = async () => {
+    const { status, data } = await call('POST', '/api/transfer-unsafe', { to: 'friend', amount: 100 });
+    $('sendOut').textContent = `HTTP ${status}\n` + (data.message || data.error);
+    refreshMe();
+  };
+
+  refreshMe();
+</script>
+</body>
+</html>
