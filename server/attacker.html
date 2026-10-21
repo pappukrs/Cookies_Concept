@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Prize Site</title>
+  <style>
+    :root { --bg: #fff8e6; --fg: #2b2100; --card: #ffffff; --line: #e8d9a8; --accent: #c2410c; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1c1708; --fg: #f4ead0; --card: #262010; --line: #4a3f1c; --accent: #fb923c; }
+    }
+    body { margin: 0; font: 16px/1.6 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+    main { max-width: 680px; margin: 0 auto; padding: 32px 16px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin: 16px 0; }
+    button { font: inherit; padding: 10px 16px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+    code { background: rgba(0,0,0,.08); padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>You won a free iPhone! 🎁</h1>
+  <p>This page lives on <code>127.0.0.1:3001</code>, a <strong>different site</strong> from the bank on
+    <code>localhost:3000</code>. It cannot read the bank's cookies. But it can make your browser
+    <em>send a request</em> to the bank, and the browser may attach the bank's cookies on its own.
+    That is <strong>CSRF</strong> (Cross-Site Request Forgery).</p>
+
+  <div class="card">
+    <h2>Attack 1: the unsafe endpoint</h2>
+    <p>A hidden form that POSTs to <code>/api/transfer-unsafe</code>. That endpoint only checks the cookie.</p>
+    <form action="http://localhost:3000/api/transfer-unsafe" method="POST">
+      <input type="hidden" name="to" value="attacker">
+      <input type="hidden" name="amount" value="5000">
+      <button>Claim prize (unsafe endpoint)</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Attack 2: the safe endpoint</h2>
+    <p>Same trick against <code>/api/transfer-safe</code>. That endpoint also wants an
+      <code>X-CSRF-Token</code> header. A plain HTML form can't add headers, and this site can't
+      read the token, so the attack fails even if the cookie is sent.</p>
+    <form action="http://localhost:3000/api/transfer-safe" method="POST">
+      <input type="hidden" name="to" value="attacker">
+      <input type="hidden" name="amount" value="5000">
+      <button>Claim prize (safe endpoint)</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>What to expect</h2>
+    <ul>
+      <li>Logged in with <code>SameSite=None</code>: attack 1 <strong>works</strong>, attack 2 is blocked by the CSRF token.</li>
+      <li>Logged in with <code>SameSite=Lax</code> (the default) or <code>Strict</code>: the browser
+        does not send the cookie on a cross-site POST, so <strong>both</strong> fail.</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>
