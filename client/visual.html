@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Flow Visual</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .stage {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+    .actor {
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--bg);
+      min-height: 220px;
+    }
+    .actor h3 { margin: 0 0 6px; font-size: 1rem; }
+    .actor.browser { border-color: var(--browser); }
+    .actor.server { border-color: var(--server); }
+    .actor .site { font-size: .8rem; color: var(--muted); word-break: break-all; }
+    .jar { margin-top: 10px; font-size: .82rem; }
+    .jar .item {
+      font-family: ui-monospace, Menlo, monospace;
+      background: var(--code-bg);
+      border-left: 3px solid var(--accent);
+      padding: 4px 6px;
+      margin: 4px 0;
+      border-radius: 4px;
+      word-break: break-all;
+      transition: opacity .4s, transform .4s;
+    }
+    .jar .item.new { animation: pop .6s ease; }
+    .jar .item.gone { opacity: .35; text-decoration: line-through; }
+    @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .track { position: relative; min-height: 220px; }
+    .wire {
+      position: absolute; left: 0; right: 0; top: 50%;
+      border-top: 2px dashed var(--line);
+    }
+    .packet {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      left: 0%;
+      width: min(92%, 300px);
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: .78rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      box-shadow: 0 4px 16px rgba(0,0,0,.12);
+      transition: left 1.4s cubic-bezier(.5,0,.3,1), opacity .3s;
+      opacity: 0;
+    }
+    .packet.req { border-color: var(--browser); }
+    .packet.res { border-color: var(--server); }
+    .packet.blocked { border-color: var(--bad); }
+    .packet .dir { font-family: system-ui, sans-serif; font-weight: 600; font-size: .75rem; display: block; margin-bottom: 2px; }
+    .explain { font-size: 1.02rem; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .progress { color: var(--muted); font-size: .9rem; margin-left: auto; }
+    .scenes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .scenes button.active { background: var(--accent); color: var(--accent-fg); }
+    .scenes button:not(.active) { background: transparent; color: var(--accent); }
+    @media (max-width: 640px) {
+      .stage { grid-template-columns: 1fr; }
+      .track { min-height: 160px; }
+      .packet { transition: top 1.2s cubic-bezier(.5,0,.3,1), opacity .3s; left: 50% !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .packet { transition: opacity .2s; }
+      .jar .item.new { animation: none; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <nav class="top"><a href="index.html">← Lab home</a><a href="cookies.html">Playground</a><a href="auth.html">Auth demo</a></nav>
+  <h1>How a cookie travels</h1>
+  <p class="lead">Pick a scene and press <strong>Next</strong> (or <kbd>→</kbd>). Watch the request/response
+    and the browser's cookie jar.</p>
+
+  <div class="card">
+    <div class="scenes" id="scenes"></div>
+    <div class="stage">
+      <div class="actor browser">
+        <h3>🧭 Browser</h3>
+        <div class="site" id="browserSite"></div>
+        <div class="jar"><strong>Cookie jar</strong><div id="jar"></div></div>
+      </div>
+      <div class="track" id="track">
+        <div class="wire"></div>
+        <div class="packet" id="packet"></div>
+      </div>
+      <div class="actor server">
+        <h3>🖥️ Server</h3>
+        <div class="site" id="serverSite"></div>
+        <div class="jar"><strong>Server memory</strong><div id="serverMem"></div></div>
+      </div>
+    </div>
+    <p class="explain" id="explain"></p>
+    <div class="controls">
+      <button class="ghost" id="prev">← Prev</button>
+      <button id="next">Next →</button>
+      <button class="ghost" id="play">▶ Auto play</button>
+      <span class="progress" id="progress"></span>
+    </div>
+  </div>
+</main>
+<script>
+  // Each scene is a list of steps. A step can move a packet (req = browser→server,
+  // res = server→browser), and/or change the jar / server memory.
+  const SCENES = [
+    {
+      title: '1. First visit + Set-Cookie',
+      browserSite: 'shop.com', serverSite: 'shop.com',
+      steps: [
+        { text: 'HTTP is stateless: each request is a stranger. The jar is empty, so the first request has no Cookie header.',
+          jar: [], mem: [] },
+        { kind: 'req', packet: 'POST /login\nHost: shop.com\n\nuser=pappu&pass=***',
+          text: 'The browser sends the login form. No cookies yet.' },
+        { text: 'The server checks the password, creates a random session id, and remembers it.',
+          mem: ['sid a91f… → user: pappu'] },
+        { kind: 'res', packet: 'HTTP/1.1 200 OK\nSet-Cookie: sid=a91f…; HttpOnly;\n  Secure; SameSite=Lax; Max-Age=3600',
+          text: 'The response carries a Set-Cookie header. That is the server saying "please store this".' },
+        { jar: ['sid=a91f… (HttpOnly, 1h, shop.com)'],
+          text: 'The browser saves it in the jar, together with its rules: domain, path, expiry, flags.' },
+      ],
+    },
+    {
+      title: '2. Next requests send it back',
+      browserSite: 'shop.com', serverSite: 'shop.com',
+      steps: [
+        { jar: ['sid=a91f… (HttpOnly, 1h, shop.com)'], mem: ['sid a91f… → user: pappu'],
+          text: 'Later the user opens /cart. Before sending, the browser checks the jar: which cookies match this URL?' },
+        { kind: 'req', packet: 'GET /cart\nHost: shop.com\nCookie: sid=a91f…',
+          text: 'It adds a Cookie header by itself. Your JS code did nothing: this is automatic.' },
+        { text: 'The server reads sid, looks it up in memory, and knows this is pappu. State over a stateless protocol!' },
+        { kind: 'res', packet: 'HTTP/1.1 200 OK\n\n<h1>Pappu\'s cart</h1>',
+          text: 'Note: the response does not need Set-Cookie again. The cookie stays until it expires.' },
+      ],
+    },
+    {
+      title: '3. Expiry + logout',
+      browserSite: 'shop.com', serverSite: 'shop.com',
+      steps: [
+        { jar: ['sid=a91f… (HttpOnly, 1h, shop.com)', 'theme=dark (no Max-Age → session cookie)'],
+          mem: ['sid a91f… → user: pappu'],
+          text: 'Two kinds: a persistent cookie (has Max-Age/Expires) and a session cookie (no expiry, gone when the browser closes).' },
+        { jar: ['sid=a91f… (HttpOnly, 1h, shop.com)', '~theme=dark (browser closed)'],
+          text: 'User closes the browser: the session cookie is deleted. The persistent one survives.' },
+        { kind: 'req', packet: 'POST /logout\nCookie: sid=a91f…', text: 'User clicks Log out.' },
+        { mem: ['~sid a91f… (deleted on server)'],
+          text: 'Good servers delete the session on the server too. Otherwise a stolen sid would still work.' },
+        { kind: 'res', packet: 'HTTP/1.1 200 OK\nSet-Cookie: sid=; Max-Age=0; Path=/',
+          text: 'To delete a cookie, the server sets it again with the same name + path and Max-Age=0.' },
+        { jar: ['~sid=a91f… (expired)', '~theme=dark (browser closed)'],
+          text: 'The browser removes it. The jar is clean.' },
+      ],
+    },
+    {
+      title: '4. Domain + Path matching',
+      browserSite: 'shop.com/blog', serverSite: 'shop.com',
+      steps: [
+        { jar: ['sid=a91f… (Path=/)', 'adminTab=users (Path=/admin)', 'lang=hi (Domain=shop.com)'], mem: [],
+          text: 'The jar has 3 cookies with different rules. The user visits shop.com/blog.' },
+        { kind: 'req', packet: 'GET /blog\nHost: shop.com\nCookie: sid=a91f…; lang=hi',
+          text: 'adminTab is NOT sent: its Path=/admin doesn\'t match /blog. Path matches by prefix, like folders.' },
+        { browserSite: 'api.shop.com', kind: 'req', packet: 'GET /v1/me\nHost: api.shop.com\nCookie: lang=hi',
+          text: 'On the subdomain api.shop.com only lang goes, because it had Domain=shop.com. Without a Domain attribute, a cookie is "host-only": just the exact host.' },
+        { browserSite: 'evil.com', kind: 'req', packet: 'GET /\nHost: evil.com\n(no Cookie header)',
+          text: 'evil.com gets nothing. A site can never read or set cookies for a different site.' },
+      ],
+    },
+    {
+      title: '5. Cross-site + SameSite (CSRF)',
+      browserSite: 'evil.com page open', serverSite: 'bank.com',
+      steps: [
+        { jar: ['bank sid=77c… (SameSite=Lax)'], mem: ['sid 77c… → user: pappu, ₹10,000'],
+          text: 'You are logged in to bank.com. Now you open evil.com in another tab.' },
+        { kind: 'req', blocked: true, packet: 'POST bank.com/transfer\n(from a hidden form on evil.com)\nCookie: — not sent (Lax) —',
+          text: 'evil.com auto-submits a form to bank.com. This is a cross-site POST, so a SameSite=Lax cookie is NOT attached.' },
+        { kind: 'res', packet: 'HTTP/1.1 401 Unauthorized', text: 'The bank sees no session → the attack fails. 🎉' },
+        { jar: ['bank sid=77c… (SameSite=None; Secure)'],
+          text: 'But if the cookie were SameSite=None (old default behaviour), the browser WOULD attach it…' },
+        { kind: 'req', packet: 'POST bank.com/transfer\nCookie: sid=77c…\n\nto=attacker&amount=5000',
+          text: '…and the bank thinks you sent it. That is CSRF. evil.com never saw the cookie; it just made your browser use it.' },
+        { text: 'Fix: keep SameSite=Lax/Strict AND require a CSRF token (or check the Origin header) for every state-changing request.' },
+        { kind: 'req', packet: 'GET bank.com/statement\n(you clicked a normal link on evil.com)\nCookie: sid=77c… (Lax allows this)',
+          text: 'Lax still sends the cookie on top-level GET navigation (clicking a link), so you stay logged in. Strict would not, even for links.' },
+      ],
+    },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  let sceneIdx = 0, stepIdx = 0, timer = null;
+  const isNarrow = () => matchMedia('(max-width: 640px)').matches;
+
+  // Apply steps 0..stepIdx so Prev works (state is rebuilt from scratch every time).
+  function stateAt(scene, upto) {
+    const st = { jar: [], mem: [], browserSite: scene.browserSite, serverSite: scene.serverSite };
+    for (let i = 0; i <= upto; i++) {
+      const s = scene.steps[i];
+      if (s.jar) st.jar = s.jar;
+      if (s.mem) st.mem = s.mem;
+      if (s.browserSite) st.browserSite = s.browserSite;
+    }
+    return st;
+  }
+
+  function renderList(el, items, prevItems) {
+    el.replaceChildren(...items.map((t) => {
+      const d = document.createElement('div');
+      d.className = 'item';
+      if (t.startsWith('~')) { d.classList.add('gone'); t = t.slice(1); }
+      else if (!prevItems.includes(t)) d.classList.add('new');
+      d.textContent = t;
+      return d;
+    }));
+    if (!items.length) el.innerHTML = '<div class="muted">(empty)</div>';
+  }
+
+  function animatePacket(step) {
+    const p = $('packet');
+    if (!step.kind) { p.style.opacity = 0; return; }
+    const startPos = step.kind === 'req' ? '15%' : '85%';
+    const endPos = step.blocked ? '55%' : (step.kind === 'req' ? '85%' : '15%');
+    p.className = 'packet ' + (step.blocked ? 'blocked' : step.kind);
+    p.innerHTML = '';
+    const dir = document.createElement('span');
+    dir.className = 'dir';
+    dir.textContent = step.kind === 'req' ? 'Request →' : '← Response';
+    p.append(dir, document.createTextNode(step.packet));
+    const prop = isNarrow() ? 'top' : 'left';
+    p.style.transition = 'none';
+    p.style[prop] = startPos;
+    p.style.opacity = 1;
+    void p.offsetWidth; // force reflow so the transition restarts
+    p.style.transition = '';
+    p.style[prop] = endPos;
+  }
+
+  function render() {
+    const scene = SCENES[sceneIdx];
+    const st = stateAt(scene, stepIdx);
+    const prev = stepIdx > 0 ? stateAt(scene, stepIdx - 1) : { jar: [], mem: [] };
+    $('browserSite').textContent = st.browserSite;
+    $('serverSite').textContent = st.serverSite;
+    renderList($('jar'), st.jar, prev.jar);
+    renderList($('serverMem'), st.mem, prev.mem);
+    const step = scene.steps[stepIdx];
+    $('explain').textContent = step.text;
+    animatePacket(step);
+    $('progress').textContent = `Step ${stepIdx + 1} / ${scene.steps.length}`;
+    $('prev').disabled = sceneIdx === 0 && stepIdx === 0;
+    [...$('scenes').children].forEach((b, i) => b.classList.toggle('active', i === sceneIdx));
+  }
+
+  function next() {
+    if (stepIdx < SCENES[sceneIdx].steps.length - 1) stepIdx++;
+    else if (sceneIdx < SCENES.length - 1) { sceneIdx++; stepIdx = 0; }
+    else { stop(); return; }
+    render();
+  }
+  function prevStep() {
+    if (stepIdx > 0) stepIdx--;
+    else if (sceneIdx > 0) { sceneIdx--; stepIdx = SCENES[sceneIdx].steps.length - 1; }
+    render();
+  }
+  function stop() { clearInterval(timer); timer = null; $('play').textContent = '▶ Auto play'; }
+
+  SCENES.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.textContent = s.title;
+    b.onclick = () => { stop(); sceneIdx = i; stepIdx = 0; render(); };
+    $('scenes').append(b);
+  });
+  $('next').onclick = () => { stop(); next(); };
+  $('prev').onclick = () => { stop(); prevStep(); };
+  $('play').onclick = () => {
+    if (timer) return stop();
+    $('play').textContent = '⏸ Pause';
+    timer = setInterval(next, 3200);
+  };
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { stop(); next(); }
+    if (e.key === 'ArrowLeft') { stop(); prevStep(); }
+  });
+  render();
+</script>
+</body>
+</html>
