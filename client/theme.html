@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dark Mode Cookie</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <nav class="top"><a href="index.html">← Lab home</a></nav>
+  <h1>Dark mode with a cookie</h1>
+  <p class="lead">Toggle the theme, then reload the page or close and reopen the tab. The theme stays,
+    because it is saved in a cookie for 7 days.</p>
+
+  <div class="card">
+    <div class="row">
+      <button id="toggle">Toggle theme</button>
+      <button class="ghost" id="forget">Forget my choice</button>
+    </div>
+    <p>Current theme: <strong id="current"></strong></p>
+    <p class="muted">Cookie right now: <code id="raw"></code></p>
+  </div>
+
+  <div class="card">
+    <h2>Why a cookie and not localStorage?</h2>
+    <p>Both work here. A cookie has one extra power: <strong>the server also gets it</strong> with every request.
+      So a server-rendered app (Next.js, Rails, Django) can render the right theme in the very first HTML,
+      with no white "flash" before JavaScript runs. localStorage is only visible to JavaScript.</p>
+    <pre>Cookie: theme=dark   ← sent to the server on every request to this site</pre>
+  </div>
+</main>
+<script type="module">
+  import { getCookie, setCookie, deleteCookie } from './cookie-helpers.js';
+
+  const SEVEN_DAYS = 7 * 24 * 60 * 60;
+  const root = document.documentElement;
+
+  function render() {
+    const theme = getCookie('theme') || 'light';
+    root.dataset.theme = theme;
+    document.getElementById('current').textContent = theme;
+    document.getElementById('raw').textContent = document.cookie || '(empty)';
+  }
+
+  document.getElementById('toggle').addEventListener('click', () => {
+    const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    setCookie('theme', next, { maxAge: SEVEN_DAYS, sameSite: 'Lax' });
+    render();
+  });
+  document.getElementById('forget').addEventListener('click', () => {
+    deleteCookie('theme');
+    render();
+  });
+  render();
+</script>
+</body>
+</html>

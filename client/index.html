@@ -1,40 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Mode with Cookies</title>
-    <style>
-        body.dark { background-color: black; color: white; }
-        body.light { background-color: white; color: black; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookies Concept Lab</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <button id="toggleTheme">Toggle Theme</button>
-    <script>
-        // Utility functions for cookies
-        function setCookie(name, value, days) {
-            const date = new Date();
-            date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
-            document.cookie = `${name}=${value}; expires=${date.toUTCString()}; path=/`;
-        }
-        function getCookie(name) {
-            return document.cookie.split('; ').reduce((acc, cookie) => {
-                const [key, value] = cookie.split('=');
-                return key === name ? value : acc;
-            }, null);
-        }
+<main>
+  <h1>Cookies Concept Lab</h1>
+  <p class="lead">Learn HTTP cookies by doing: set them, read them, break them, and attack them.
+    Full notes are in <code>README.md</code>.</p>
 
-        // Set initial theme
-        const currentTheme = getCookie('theme') || 'light';
-        document.body.className = currentTheme;
+  <div class="card" id="file-warning" hidden>
+    <strong class="bad">You opened this page as a file.</strong>
+    Cookies don't work on <code>file://</code> pages. Run <code>npm start</code> and open
+    <a href="http://localhost:3000">http://localhost:3000</a>.
+  </div>
 
-        // Toggle theme and update cookie
-        document.getElementById('toggleTheme').addEventListener('click', () => {
-            const newTheme = document.body.className === 'light' ? 'dark' : 'light';
-            document.body.className = newTheme;
-            setCookie('theme', newTheme, 7);
-        });
-    </script>
+  <div class="grid">
+    <a class="card" href="visual.html" style="text-decoration:none;color:inherit">
+      <h2>1. Animated visual</h2>
+      <p class="muted">Watch a cookie travel: Set-Cookie, the cookie jar, auto-sending,
+        expiry, path matching and SameSite. Step by step.</p>
+    </a>
+    <a class="card" href="cookies.html" style="text-decoration:none;color:inherit">
+      <h2>2. Playground</h2>
+      <p class="muted">Set cookies from JavaScript and from the server. See why JS can't see
+        HttpOnly cookies, but the server can.</p>
+    </a>
+    <a class="card" href="theme.html" style="text-decoration:none;color:inherit">
+      <h2>3. Dark mode with a cookie</h2>
+      <p class="muted">A small real use: remember the user's theme for 7 days.</p>
+    </a>
+    <a class="card" href="auth.html" style="text-decoration:none;color:inherit">
+      <h2>4. Login session + CSRF</h2>
+      <p class="muted">HttpOnly session cookie, signed cookie, logout, and a real CSRF
+        attack from another site, blocked by SameSite and a CSRF token.</p>
+    </a>
+  </div>
+
+  <div class="card">
+    <h2>One-line summary</h2>
+    <p>A cookie is a small <strong>name=value</strong> string the server asks the browser to store
+      (<code>Set-Cookie</code>). The browser sends it back on <strong>every matching request</strong>
+      (<code>Cookie</code>). That is how a stateless protocol (HTTP) remembers who you are.</p>
+  </div>
+</main>
+<script>
+  if (location.protocol === 'file:') document.getElementById('file-warning').hidden = false;
+</script>
 </body>
 </html>
