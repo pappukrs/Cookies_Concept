@@ -1,0 +1,13 @@
+{
+  "name": "cookies-concept",
+  "version": "1.0.0",
+  "description": "Learn HTTP cookies in depth: notes, playground, animated visual, sessions and CSRF demo",
+  "type": "module",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
