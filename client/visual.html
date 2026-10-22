@@ -36,48 +36,110 @@
     }
     .jar .item.new { animation: pop .6s ease; }
     .jar .item.gone { opacity: .35; text-decoration: line-through; }
-    @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .jar .item.sent { border-left-color: var(--browser); box-shadow: 0 0 0 2px color-mix(in srgb, var(--browser) 35%, transparent); }
+    .jar .item.sent::after { content: ' → sent'; font-family: system-ui, sans-serif; font-weight: 600; color: var(--browser); }
+    .jar .item.held { opacity: .45; }
+    @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+    .actor { transition: box-shadow .3s; }
+    .actor.ping { animation: ping .9s ease-out; }
+    .actor.browser { --glow: var(--browser); }
+    .actor.server { --glow: var(--server); }
+    @keyframes ping {
+      0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--glow) 55%, transparent); }
+      100% { box-shadow: 0 0 0 14px transparent; }
+    }
     .track { position: relative; min-height: 220px; }
     .wire {
-      position: absolute; left: 0; right: 0; top: 50%;
-      border-top: 2px dashed var(--line);
+      position: absolute; left: 0; right: 0; top: 50%; height: 2px;
+      background: repeating-linear-gradient(90deg, var(--line) 0 8px, transparent 8px 14px);
     }
-    .packet {
-      position: absolute;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      left: 0%;
-      width: min(92%, 300px);
+    .wire.flow-right { animation: flow-r .5s linear infinite; }
+    .wire.flow-left { animation: flow-l .5s linear infinite; }
+    @keyframes flow-r { to { background-position: 14px 0; } }
+    @keyframes flow-l { to { background-position: -14px 0; } }
+    .barrier {
+      position: absolute; left: 50%; top: 18%; bottom: 18%; width: 0;
+      border-left: 3px solid var(--bad); opacity: 0; transition: opacity .3s;
+    }
+    .barrier span {
+      position: absolute; top: -4px; left: 0; transform: translate(-50%, -100%);
+      font-size: .72rem; font-weight: 600; color: var(--bad); white-space: nowrap;
+    }
+    .barrier.on { opacity: 1; }
+    .envelope {
+      position: absolute; left: 0; top: 0;
+      opacity: 0;
+      transition: translate var(--dur) cubic-bezier(.5,0,.3,1), opacity .25s;
+    }
+    .env-body {
+      position: relative;
       background: var(--card);
       border: 2px solid var(--accent);
-      border-radius: 10px;
-      padding: 8px 10px;
-      font-family: ui-monospace, Menlo, monospace;
-      font-size: .78rem;
-      white-space: pre-wrap;
-      word-break: break-word;
-      box-shadow: 0 4px 16px rgba(0,0,0,.12);
-      transition: left 1.4s cubic-bezier(.5,0,.3,1), opacity .3s;
-      opacity: 0;
+      border-radius: 999px;
+      padding: 5px 12px;
+      font: 600 .78rem ui-monospace, Menlo, monospace;
+      white-space: nowrap;
+      max-width: 210px;
+      overflow: visible;
+      box-shadow: 0 4px 14px rgba(0,0,0,.15);
     }
-    .packet.req { border-color: var(--browser); }
-    .packet.res { border-color: var(--server); }
-    .packet.blocked { border-color: var(--bad); }
-    .packet .dir { font-family: system-ui, sans-serif; font-weight: 600; font-size: .75rem; display: block; margin-bottom: 2px; }
-    .explain { font-size: 1.02rem; }
+    .env-body .label { display: block; overflow: hidden; text-overflow: ellipsis; }
+    .envelope.req .env-body { border-color: var(--browser); color: var(--browser); }
+    .envelope.res .env-body { border-color: var(--server); color: var(--server); }
+    .env-body .cookie {
+      position: absolute; top: -12px; right: -10px; font-size: 1.1rem;
+      transition: transform .6s ease-in, opacity .6s ease-in;
+    }
+    .envelope.strip .cookie { transform: translate(6px, 46px) rotate(160deg); opacity: 0; }
+    .envelope.strip .env-body { animation: shake .4s; }
+    @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+    .message {
+      margin-top: 14px;
+      border: 2px solid var(--line);
+      border-radius: 10px;
+      background: var(--bg);
+      padding: 8px 12px;
+      min-height: 112px;
+      transition: border-color .3s;
+    }
+    .message.req { border-color: var(--browser); }
+    .message.res { border-color: var(--server); }
+    .message .dir { font-weight: 600; font-size: .8rem; }
+    .message.req .dir { color: var(--browser); }
+    .message.res .dir { color: var(--server); }
+    .message pre { margin: 4px 0 0; padding: 0; background: none; font-size: .82rem; }
+    .message .hl { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 3px; padding: 0 3px; }
+    .message .hl.stripped { background: color-mix(in srgb, var(--bad) 20%, transparent); }
+    .explain { font-size: 1.02rem; min-height: 3.2em; }
+    .explain.fade { animation: fade .35s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } }
     .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .progress { color: var(--muted); font-size: .9rem; margin-left: auto; }
-    .scenes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .controls button:disabled { opacity: .4; cursor: default; }
+    .progress { color: var(--muted); font-size: .9rem; margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .dots { display: flex; gap: 5px; }
+    .dots button { width: 10px; height: 10px; padding: 0; border-radius: 50%; background: var(--line); border: none; }
+    .dots button.done { background: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+    .dots button.now { background: var(--accent); transform: scale(1.3); }
+    .scenes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
     .scenes button.active { background: var(--accent); color: var(--accent-fg); }
     .scenes button:not(.active) { background: transparent; color: var(--accent); }
     @media (max-width: 640px) {
       .stage { grid-template-columns: 1fr; }
-      .track { min-height: 160px; }
-      .packet { transition: top 1.2s cubic-bezier(.5,0,.3,1), opacity .3s; left: 50% !important; }
+      .actor { min-height: 0; }
+      .track { min-height: 130px; }
+      .wire { left: 50%; right: auto; top: 0; bottom: 0; width: 2px; height: auto;
+        background: repeating-linear-gradient(180deg, var(--line) 0 8px, transparent 8px 14px); }
+      .wire.flow-right { animation-name: flow-d; }
+      .wire.flow-left { animation-name: flow-u; }
+      @keyframes flow-d { to { background-position: 0 14px; } }
+      @keyframes flow-u { to { background-position: 0 -14px; } }
+      .barrier { left: 15%; right: 15%; top: 50%; bottom: auto; width: auto; height: 0; border-left: 0; border-top: 3px solid var(--bad); }
+      .barrier span { left: auto; right: 0; transform: translateY(-100%); }
+      .progress { margin-left: 0; width: 100%; justify-content: space-between; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .packet { transition: opacity .2s; }
-      .jar .item.new { animation: none; }
+      .envelope, .env-body .cookie { transition: opacity .2s; }
+      .jar .item.new, .actor.ping, .wire.flow-right, .wire.flow-left, .envelope.strip .env-body, .explain.fade { animation: none; }
     }
   </style>
 </head>
@@ -97,8 +159,9 @@
         <div class="jar"><strong>Cookie jar</strong><div id="jar"></div></div>
       </div>
       <div class="track" id="track">
-        <div class="wire"></div>
-        <div class="packet" id="packet"></div>
+        <div class="wire" id="wire"></div>
+        <div class="barrier" id="barrier"><span>SameSite=Lax: cookie stripped</span></div>
+        <div class="envelope" id="envelope"><div class="env-body"><span class="label" id="envLabel"></span></div></div>
       </div>
       <div class="actor server">
         <h3>🖥️ Server</h3>
@@ -106,21 +169,22 @@
         <div class="jar"><strong>Server memory</strong><div id="serverMem"></div></div>
       </div>
     </div>
-    <p class="explain" id="explain"></p>
+    <div class="message" id="message"></div>
+    <p class="explain" id="explain" aria-live="polite"></p>
     <div class="controls">
       <button class="ghost" id="prev">← Prev</button>
       <button id="next">Next →</button>
       <button class="ghost" id="play">▶ Auto play</button>
-      <span class="progress" id="progress"></span>
+      <span class="progress"><span class="dots" id="dots"></span><span id="progress"></span></span>
     </div>
   </div>
 </main>
 <script>
-  // Each scene is a list of steps. A step can move a packet (req = browser→server,
+  // Each scene is a list of steps. A step can send a message (req = browser→server,
   // res = server→browser), and/or change the jar / server memory.
   const SCENES = [
     {
-      title: '1. First visit + Set-Cookie',
+      title: '1. Login + Set-Cookie',
       browserSite: 'shop.com', serverSite: 'shop.com',
       steps: [
         { text: 'HTTP is stateless: each request is a stranger. The jar is empty, so the first request has no Cookie header.',
@@ -201,8 +265,11 @@
   ];
 
   const $ = (id) => document.getElementById(id);
-  let sceneIdx = 0, stepIdx = 0, timer = null;
+  let sceneIdx = 0, stepIdx = 0, timer = null, token = 0;
   const isNarrow = () => matchMedia('(max-width: 640px)').matches;
+  const noMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DUR = 1300;
+  $('envelope').style.setProperty('--dur', DUR + 'ms');
 
   // Apply steps 0..stepIdx so Prev works (state is rebuilt from scratch every time).
   function stateAt(scene, upto) {
@@ -216,59 +283,154 @@
     return st;
   }
 
-  function renderList(el, items, prevItems) {
+  // "name=value" pairs that actually travel in a request's Cookie header.
+  function sentPairs(step) {
+    if (step.kind !== 'req') return null;
+    const line = step.packet.split('\n').find((l) => l.startsWith('Cookie:')) || '';
+    return line.match(/\w+=[^\s;(]+/g) || [];
+  }
+
+  function renderList(el, items, prevItems, sent) {
     el.replaceChildren(...items.map((t) => {
       const d = document.createElement('div');
       d.className = 'item';
       if (t.startsWith('~')) { d.classList.add('gone'); t = t.slice(1); }
-      else if (!prevItems.includes(t)) d.classList.add('new');
+      else {
+        if (!prevItems.includes(t)) d.classList.add('new');
+        if (sent) {
+          const pair = (t.match(/\w+=[^\s;(]+/) || [''])[0];
+          d.classList.add(sent.includes(pair) ? 'sent' : 'held');
+        }
+      }
       d.textContent = t;
       return d;
     }));
     if (!items.length) el.innerHTML = '<div class="muted">(empty)</div>';
   }
 
-  function animatePacket(step) {
-    const p = $('packet');
-    if (!step.kind) { p.style.opacity = 0; return; }
-    const startPos = step.kind === 'req' ? '15%' : '85%';
-    const endPos = step.blocked ? '55%' : (step.kind === 'req' ? '85%' : '15%');
-    p.className = 'packet ' + (step.blocked ? 'blocked' : step.kind);
-    p.innerHTML = '';
-    const dir = document.createElement('span');
+  function renderMessage(step) {
+    const m = $('message');
+    m.className = 'message' + (step.kind ? ' ' + step.kind : '');
+    if (!step.kind) {
+      m.innerHTML = '<span class="muted">Nothing on the wire in this step. Watch the boxes above.</span>';
+      return;
+    }
+    const dir = document.createElement('div');
     dir.className = 'dir';
-    dir.textContent = step.kind === 'req' ? 'Request →' : '← Response';
-    p.append(dir, document.createTextNode(step.packet));
-    const prop = isNarrow() ? 'top' : 'left';
-    p.style.transition = 'none';
-    p.style[prop] = startPos;
-    p.style.opacity = 1;
-    void p.offsetWidth; // force reflow so the transition restarts
-    p.style.transition = '';
-    p.style[prop] = endPos;
+    dir.textContent = step.kind === 'req' ? 'Request: browser → server' : 'Response: server → browser';
+    const pre = document.createElement('pre');
+    step.packet.split('\n').forEach((line, i) => {
+      if (i) pre.append('\n');
+      if (/^(Set-)?Cookie:/.test(line)) {
+        const span = document.createElement('span');
+        span.className = 'hl' + (step.blocked ? ' stripped' : '');
+        span.textContent = line;
+        pre.append(span);
+      } else pre.append(line);
+    });
+    m.replaceChildren(dir, pre);
+  }
+
+  function ping(el) {
+    el.classList.remove('ping');
+    void el.offsetWidth; // restart the animation
+    el.classList.add('ping');
+  }
+
+  // Start/end positions in px inside the track, for the envelope's current size.
+  function ends(kind) {
+    const tr = $('track'), env = $('envelope');
+    const tw = tr.clientWidth, th = tr.clientHeight, ew = env.offsetWidth, eh = env.offsetHeight;
+    const a = isNarrow()
+      ? [[(tw - ew) / 2, 0], [(tw - ew) / 2, th - eh]]
+      : [[0, (th - eh) / 2], [tw - ew, (th - eh) / 2]];
+    return kind === 'req' ? a : [a[1], a[0]];
+  }
+
+  function animateMessage(step) {
+    const t = ++token;
+    const env = $('envelope'), wire = $('wire'), barrier = $('barrier');
+    barrier.classList.remove('on');
+    wire.className = 'wire';
+    if (!step.kind) { env.style.opacity = 0; return; }
+
+    env.className = 'envelope ' + step.kind;
+    $('envLabel').textContent = (step.kind === 'req' ? '→ ' : '← ') + step.packet.split('\n')[0];
+    env.querySelector('.cookie')?.remove();
+    const carriesCookie = step.blocked ||
+      (step.kind === 'req' ? sentPairs(step).length > 0 : /^Set-Cookie: \w+=[^;\s]/m.test(step.packet));
+    if (carriesCookie) {
+      const c = document.createElement('span');
+      c.className = 'cookie';
+      c.textContent = '🍪';
+      env.firstElementChild.append(c);
+    }
+
+    const [from, to] = ends(step.kind);
+    env.style.transition = 'none';
+    env.style.translate = `${from[0]}px ${from[1]}px`;
+    env.style.opacity = 1;
+    void env.offsetWidth; // force reflow so the transition restarts
+    env.style.transition = '';
+    const receiver = document.querySelector(step.kind === 'req' ? '.actor.server' : '.actor.browser');
+
+    if (noMotion()) {
+      env.style.translate = `${to[0]}px ${to[1]}px`;
+      if (step.blocked) { barrier.classList.add('on'); env.classList.add('strip'); }
+      return;
+    }
+    env.style.translate = `${to[0]}px ${to[1]}px`;
+    wire.classList.add(step.kind === 'req' ? 'flow-right' : 'flow-left');
+    if (step.blocked) {
+      setTimeout(() => { if (t !== token) return; barrier.classList.add('on'); env.classList.add('strip'); }, DUR * 0.45);
+    }
+    setTimeout(() => {
+      if (t !== token) return;
+      wire.className = 'wire';
+      ping(receiver);
+    }, DUR);
   }
 
   function render() {
     const scene = SCENES[sceneIdx];
     const st = stateAt(scene, stepIdx);
     const prev = stepIdx > 0 ? stateAt(scene, stepIdx - 1) : { jar: [], mem: [] };
+    const step = scene.steps[stepIdx];
     $('browserSite').textContent = st.browserSite;
     $('serverSite').textContent = st.serverSite;
-    renderList($('jar'), st.jar, prev.jar);
-    renderList($('serverMem'), st.mem, prev.mem);
-    const step = scene.steps[stepIdx];
-    $('explain').textContent = step.text;
-    animatePacket(step);
+    renderList($('jar'), st.jar, prev.jar, sentPairs(step));
+    renderList($('serverMem'), st.mem, prev.mem, null);
+    // Steps with no message happen inside one actor: pulse whoever changed.
+    if (!step.kind) {
+      if (step.jar && stepIdx > 0) ping(document.querySelector('.actor.browser'));
+      if (step.mem && stepIdx > 0) ping(document.querySelector('.actor.server'));
+    }
+    const ex = $('explain');
+    ex.textContent = step.text;
+    ex.classList.remove('fade'); void ex.offsetWidth; ex.classList.add('fade');
+    renderMessage(step);
+    animateMessage(step);
+
     $('progress').textContent = `Step ${stepIdx + 1} / ${scene.steps.length}`;
+    $('dots').replaceChildren(...scene.steps.map((_, i) => {
+      const d = document.createElement('button');
+      d.className = i < stepIdx ? 'done' : i === stepIdx ? 'now' : '';
+      d.setAttribute('aria-label', `Go to step ${i + 1}`);
+      d.onclick = () => { stop(); stepIdx = i; render(); };
+      return d;
+    }));
     $('prev').disabled = sceneIdx === 0 && stepIdx === 0;
+    $('next').disabled = atEnd();
     [...$('scenes').children].forEach((b, i) => b.classList.toggle('active', i === sceneIdx));
   }
 
+  const atEnd = () => sceneIdx === SCENES.length - 1 && stepIdx === SCENES[sceneIdx].steps.length - 1;
   function next() {
     if (stepIdx < SCENES[sceneIdx].steps.length - 1) stepIdx++;
     else if (sceneIdx < SCENES.length - 1) { sceneIdx++; stepIdx = 0; }
     else { stop(); return; }
     render();
+    if (atEnd()) stop();
   }
   function prevStep() {
     if (stepIdx > 0) stepIdx--;
@@ -287,12 +449,21 @@
   $('prev').onclick = () => { stop(); prevStep(); };
   $('play').onclick = () => {
     if (timer) return stop();
+    if (atEnd()) { sceneIdx = 0; stepIdx = 0; render(); }
     $('play').textContent = '⏸ Pause';
-    timer = setInterval(next, 3200);
+    timer = setInterval(next, 3600);
   };
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight') { stop(); next(); }
     if (e.key === 'ArrowLeft') { stop(); prevStep(); }
+  });
+  // Keep the envelope parked at its end point when the layout changes size.
+  addEventListener('resize', () => {
+    const step = SCENES[sceneIdx].steps[stepIdx];
+    if (!step.kind) return;
+    const env = $('envelope'), [, to] = ends(step.kind);
+    env.style.transition = 'none';
+    env.style.translate = `${to[0]}px ${to[1]}px`;
   });
   render();
 </script>
